@@ -6,9 +6,12 @@
 #include "cgosymbolizer_darwin.h"
 
 struct cgo_context {
+    bool used;
     unw_context_t unw_ctx;
     unw_cursor_t unw_cursor;
 };
+
+__thread struct cgo_context thread_ctx;
 
 void cgo_traceback(void* p) {
     struct {
@@ -46,21 +49,21 @@ void cgo_context(void* p) {
     }* arg = p;
 
     if (arg->ctx != 0) {
-        free((struct cgo_context*) arg->ctx);
+        struct cgo_context* ctx = (struct cgo_context*) arg->ctx;
+        ctx->used = 0;
         return;
     }
 
-    struct cgo_context* ctx = malloc(sizeof(cgo_context));
-    if (ctx == NULL)
+    if (thread_ctx.used)
         return;
-    if (unw_getcontext(&ctx->unw_ctx) != 0)
+    if (unw_getcontext(&thread_ctx.unw_ctx) != 0)
         return;
-    if (unw_init_local(&ctx->unw_cursor, &ctx->unw_ctx) != 0)
+    if (unw_init_local(&thread_ctx.unw_cursor, &thread_ctx.unw_ctx) != 0)
         return;
     // Step the saved state past this frame. It will cease to exist momentarily.
-    if (unw_step(&ctx->unw_cursor) <= 0)
+    if (unw_step(&thread_ctx.unw_cursor) <= 0)
         return;
-    arg->ctx = (uintptr_t) ctx;
+    arg->ctx = (uintptr_t) &thread_ctx;
 }
 
 void cgo_symbolizer(void* p) {
