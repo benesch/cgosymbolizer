@@ -11,7 +11,7 @@ import (
 	_ "github.com/benesch/cgosymbolizer"
 )
 
-// #cgo CFLAGS: -g
+// #cgo CFLAGS: -g -O0
 // void c1(void);
 import "C"
 

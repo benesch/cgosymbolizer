@@ -4,7 +4,7 @@ void goPrintStack(void);
 
 void c3(void) {
     goPrintStack();
-    abort();
+    volatile char p = *(volatile char*) NULL;
 }
 
 void c2(void) {
