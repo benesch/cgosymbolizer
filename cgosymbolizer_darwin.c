@@ -1,8 +1,10 @@
 #include <dlfcn.h>
 #include <libunwind.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "cgosymbolizer_darwin.h"
 
 struct cgo_context {
@@ -29,15 +31,21 @@ void cgo_traceback(void* p) {
             return;
         if (unw_init_local(&ctx.unw_cursor, &ctx.unw_ctx) != 0)
             return;
+        // Skip the cgo_traceback, x_cgo_callers, and _sigtramp frames.
+        for (int i = 0; i < 3; i++)
+            if (unw_step(&ctx.unw_cursor) == 0)
+                return;
     }
 
     int i = 0;
-    while (i < arg->max && unw_step(&ctx.unw_cursor) > 0) {
+    while (i < arg->max) {
         unw_word_t pc;
         unw_get_reg(&ctx.unw_cursor, UNW_REG_IP, &pc);
         if (pc == 0)
             break;
         arg->buf[i++] = pc;
+        if (unw_step(&ctx.unw_cursor) == 0)
+            break;
     }
     if (i < arg->max)
         arg->buf[i] = 0;
